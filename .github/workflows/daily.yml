@@ -31,3 +31,14 @@ jobs:
         run: |
           ls -la
           cat signal.txt price.txt
+
+      - name: Send Telegram Signal
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          SIGNAL=$(cat signal.txt)
+          PRICE=$(cat price.txt)
+          MSG="✅ AramPlus Test%0APrice: \$${PRICE}%0ASignal: ${SIGNAL}"
+          curl -s "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${CHAT_ID}&text=${MSG}&parse_mode=Markdown"
