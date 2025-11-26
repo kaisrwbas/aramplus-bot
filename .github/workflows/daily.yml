@@ -1,3 +1,9 @@
+- name: Show current aramplus.py
+  run: cat aramplus.py
+
+- name: Clear any stale files
+  run: rm -f signal.txt price.txt || true
+  
 name: 📈 Daily AramPlus Signal
 on:
   schedule:
