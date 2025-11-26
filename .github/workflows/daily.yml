@@ -1,38 +1,33 @@
-- name: Show current aramplus.py
-  run: cat aramplus.py
-
-- name: Clear any stale files
-  run: rm -f signal.txt price.txt || true
-  
-name: 📈 Daily AramPlus Signal
+name: 🚀 AramPlus Test Run
 on:
-  schedule:
-    - cron: '0 0 * * *'  # Runs daily at 00:00 UTC
-  workflow_dispatch:     # Allows manual run
+  workflow_dispatch:  # Allows manual run (no cron yet)
 
 jobs:
-  signal:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install -r requirements.txt
-      - name: Run AramPlus
-        run: python aramplus.py
-      - name: Send Telegram Signal
-        env:
-          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Install dependencies
         run: |
-          SIGNAL=$(cat signal.txt)
-          PRICE=$(cat price.txt)
-          if [ "$SIGNAL" = "BUY" ]; then
-            MSG="🔔 *AramPlus Alert*%0A📈 BTC/USD: \$${PRICE}%0A🎯 Signal: BUY%0A🛡️ SL: -5% | TP: +10%"
-          else
-            MSG="⚪ *AramPlus Update*%0A📉 BTC/USD: \$${PRICE}%0A⏸ Signal: HOLD"
-          fi
-          curl -s "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
-            -d "chat_id=${CHAT_ID}&text=${MSG}&parse_mode=Markdown"
+          pip install yfinance==0.2.66 vectorbt==0.28.1
+
+      - name: Create minimal aramplus.py
+        run: |
+          echo 'print("✅ Script started")' > aramplus.py
+          echo 'with open("signal.txt", "w") as f: f.write("HOLD")' >> aramplus.py
+          echo 'with open("price.txt", "w") as f: f.write("90000.00")' >> aramplus.py
+          echo 'print("✅ Files saved — no /content/ used!")' >> aramplus.py
+
+      - name: Run script
+        run: python aramplus.py
+
+      - name: Show files created
+        run: |
+          ls -la
+          cat signal.txt price.txt
