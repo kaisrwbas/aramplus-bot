@@ -59,7 +59,13 @@ print(f"📊 MA({MA_WINDOW}): ${last_ma:.2f} | RSI: {last_rsi:.1f}")
 print(f"🎯 Signal: {'🟢 BUY' if latest_signal else '🔴 NO TRADE'}")
 
 # --- OUTPUT FOR AUTOMATION ---
-with open("/content/signal.txt", "w") as f:
-    f.write(f"{'BUY' if latest_signal else 'HOLD'}")
-with open("/content/price.txt", "w") as f:
+# ✅ NEW (works everywhere):
+import os
+
+# Save outputs in current directory (where script runs)
+with open("signal.txt", "w") as f:
+    f.write("BUY" if latest_signal else "HOLD")
+with open("price.txt", "w") as f:
     f.write(f"{current_price:.2f}")
+
+print("✅ Signal & price saved to current directory.")
