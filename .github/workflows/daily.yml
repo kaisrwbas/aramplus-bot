@@ -1,6 +1,6 @@
 name: 🚀 AramPlus Test Run
 on:
-  workflow_dispatch:  # Allows manual run (no cron yet)
+  workflow_dispatch:
 
 jobs:
   test:
@@ -32,6 +32,7 @@ jobs:
           ls -la
           cat signal.txt price.txt
 
+      # 🔔 ADD TELEGRAM HERE — this is the NEW step
       - name: Send Telegram Signal
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
