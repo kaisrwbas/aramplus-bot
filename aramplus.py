@@ -5,6 +5,10 @@ import numpy as np
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 pd.set_option('future.no_silent_downcasting', True)
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+import pandas as pd
+pd.set_option('future.no_silent_downcasting', True)
 
 # Config
 SYMBOL = "BTC-USD"
@@ -60,8 +64,8 @@ print(f"📈 {SYMBOL} | Price: ${current_price:.2f}")
 print(f"🎯 Signal: {'🟢 BUY' if latest_signal else '🔴 NO TRADE'}")
 
 # Save (relative path!)
+# ✅ Save in current working directory (no path prefix)
 with open("signal.txt", "w") as f:
     f.write("BUY" if latest_signal else "HOLD")
 with open("price.txt", "w") as f:
     f.write(f"{current_price:.2f}")
-print("✅ Signal & price saved.")
