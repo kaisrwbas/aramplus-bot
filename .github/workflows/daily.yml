@@ -1,0 +1,32 @@
+name: 📈 Daily AramPlus Signal
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at 00:00 UTC
+  workflow_dispatch:     # Allows manual run
+
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Run AramPlus
+        run: python aramplus.py
+      - name: Send Telegram Signal
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          SIGNAL=$(cat signal.txt)
+          PRICE=$(cat price.txt)
+          if [ "$SIGNAL" = "BUY" ]; then
+            MSG="🔔 *AramPlus Alert*%0A📈 BTC/USD: \$${PRICE}%0A🎯 Signal: BUY%0A🛡️ SL: -5% | TP: +10%"
+          else
+            MSG="⚪ *AramPlus Update*%0A📉 BTC/USD: \$${PRICE}%0A⏸ Signal: HOLD"
+          fi
+          curl -s "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${CHAT_ID}&text=${MSG}&parse_mode=Markdown"
