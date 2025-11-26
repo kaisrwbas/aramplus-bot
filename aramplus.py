@@ -1,33 +1,24 @@
-
 import yfinance as yf
 import vectorbt as vbt
 import pandas as pd
 import numpy as np
-import os
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
-
-# Opt in to future pandas behavior
-import pandas as pd
 pd.set_option('future.no_silent_downcasting', True)
-# --- CONFIG ---
+
+# Config
 SYMBOL = "BTC-USD"
 INIT_CASH = 10000
 MA_WINDOW = 50
 RSI_THRESHOLD = 60
-SL_PERCENT = 0.05
-TP_PERCENT = 0.10
 
-# --- DATA ---
-print("📥 Fetching data...")
+# Fetch & clean data
 btc = yf.download(SYMBOL, period="1y", interval="1d", progress=False)
-
-# Flatten multi-index (if any)
 if isinstance(btc.columns, pd.MultiIndex):
     btc.columns = [c[0] for c in btc.columns]
 btc = btc[['Close']].dropna()
 
-# --- INDICATORS ---
+# Indicators
 def rsi(series, window=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window).mean()
@@ -39,38 +30,38 @@ btc['MA'] = btc['Close'].rolling(MA_WINDOW).mean()
 btc['RSI'] = rsi(btc['Close'])
 btc = btc.dropna()
 
-# --- SIGNAL ---
-btc['Signal'] = (
-    (btc['Close'] > btc['MA']) & 
-    (btc['RSI'] < RSI_THRESHOLD)
-).astype(int)
+# Signal
+btc['Signal'] = ((btc['Close'] > btc['MA']) & (btc['RSI'] < RSI_THRESHOLD)).astype(int)
 
-# --- BACKTEST ---
-entries = btc['Signal'].astype(bool)
-exits = (~entries).shift(1).fillna(False)
-port = vbt.Portfolio.from_signals(
-    btc['Close'], entries, exits,
-    init_cash=INIT_CASH, fees=0.001
-)
+# --- CRITICAL: Clean for Numba ---
+btc.index = pd.to_datetime(btc.index).tz_localize(None)
+btc = btc[~btc.index.duplicated()]
+close = btc['Close'].astype(np.float64)
+entries = (btc['Signal'] == 1).astype(np.bool_)
+exits = (btc['Signal'] == 0).shift(1).fillna(False).astype(np.bool_)
 
-# --- LATEST SIGNAL ---
-latest_signal = btc['Signal'].iloc[-1]
-current_price = btc['Close'].iloc[-1]
-last_ma = btc['MA'].iloc[-1]
-last_rsi = btc['RSI'].iloc[-1]
+# Backtest
+try:
+    port = vbt.Portfolio.from_signals(
+        close, entries, exits,
+        init_cash=INIT_CASH,
+        fees=0.001,
+        freq='1D'
+    )
+    latest_signal = entries.iloc[-1]
+    current_price = close.iloc[-1]
+except Exception as e:
+    print("⚠️ Fallback mode due to Numba error:", e)
+    latest_signal = btc['Signal'].iloc[-1] == 1
+    current_price = btc['Close'].iloc[-1]
 
+# Output
 print(f"📈 {SYMBOL} | Price: ${current_price:.2f}")
-print(f"📊 MA({MA_WINDOW}): ${last_ma:.2f} | RSI: {last_rsi:.1f}")
 print(f"🎯 Signal: {'🟢 BUY' if latest_signal else '🔴 NO TRADE'}")
 
-# --- OUTPUT FOR AUTOMATION ---
-# ✅ NEW (works everywhere):
-import os
-
-# Save outputs in current directory (where script runs)
+# Save (relative path!)
 with open("signal.txt", "w") as f:
     f.write("BUY" if latest_signal else "HOLD")
 with open("price.txt", "w") as f:
     f.write(f"{current_price:.2f}")
-
-print("✅ Signal & price saved to current directory.")
+print("✅ Signal & price saved.")
