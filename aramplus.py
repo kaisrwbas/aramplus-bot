@@ -4,7 +4,12 @@ import vectorbt as vbt
 import pandas as pd
 import numpy as np
 import os
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
+# Opt in to future pandas behavior
+import pandas as pd
+pd.set_option('future.no_silent_downcasting', True)
 # --- CONFIG ---
 SYMBOL = "BTC-USD"
 INIT_CASH = 10000
