@@ -76,30 +76,32 @@ with open("sl.txt", "w") as f:
 with open("tp.txt", "w") as f:
     f.write(f"{tp_price:.2f}" if latest_signal else "N/A")
 
-# --- OPTIONAL: Testnet Balance Check (only if keys provided) ---
-try:
-    api_key = os.getenv("BINANCE_TESTNET_KEY", "").strip()
-    api_secret = os.getenv("BINANCE_TESTNET_SECRET", "").strip()
-    
-    if api_key and api_secret:
-        import ccxt
-        exchange = ccxt.binance({
-            'apiKey': api_key,
-            'secret': api_secret,
-            'enableRateLimit': True,
-            'urls': {
-                'api': {
-                    'public': 'https://testnet.binance.vision/api',
-                    'private': 'https://testnet.binance.vision/api',
-                }
-            },
-            'options': {'defaultType': 'spot'}
-        })
-        account = exchange.privateGetAccount()
-        balances = {b['asset']: float(b['free']) for b in account['balances']}
-        usdt = balances.get('USDT', 0)
-        btc_balance = balances.get('BTC', 0)
-        print(f"📡 Testnet Balance: {btc_balance:.6f} BTC, ${usdt:.2f} USDT")
+# --- Alpaca Paper Trading (if keys set) ---
+alpaca_key = os.getenv("ALPACA_API_KEY", "").strip()
+alpaca_secret = os.getenv("ALPACA_SECRET_KEY", "").strip()
+
+if alpaca_key and alpaca_secret and latest_signal:
+    try:
+        from alpaca.trading.client import TradingClient
+        from alpaca.trading.requests import MarketOrderRequest
+        
+        trading_client = TradingClient(alpaca_key, alpaca_secret, paper=True)
+        account = trading_client.get_account()
+        usd_balance = float(account.cash)
+        
+        if usd_balance > 10:  # min $10 to trade
+            qty = min(0.001, usd_balance / current_price * 0.95)  # 95% of cash
+            order = trading_client.submit_order(
+                MarketOrderRequest(
+                    symbol="BTC/USD",
+                    qty=qty,
+                    side="buy",
+                    time_in_force="gtc"
+                )
+            )
+            print(f"✅ Alpaca Paper BUY: {qty:.6f} BTC @ ~${current_price:.2f} | ID: {order.id}")
+    except Exception as e:
+        print(f"⚠️ Alpaca trade failed: {e}")
         
         # Auto-trade if signal=BUY and enough USDT
         if latest_signal and usdt > 100:
