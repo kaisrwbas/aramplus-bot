@@ -1,0 +1,40 @@
+name: 📊 Deploy AramPlus Dashboard
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # allows manual run
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build with Streamlit
+        run: |
+          pip install streamlit
+          mkdir -p _site
+          echo "import streamlit as st; st.write('Building AramPlus Dashboard...')" > _site/index.html
+          # In reality, Streamlit needs a server — but for static demo:
+          echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AramPlus</title></head><body><h1>📡 AramPlus Dashboard</h1><p>✅ Live at: <a href="https://YOUR-USERNAME.github.io/aramplus-bot">github.io/aramplus-bot</a></p><p><em>Full interactive version coming soon!</em></p></body></html>' > _site/index.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
