@@ -33,19 +33,48 @@ btc['MA'] = btc['Close'].rolling(MA_WINDOW).mean()
 btc['RSI'] = rsi(btc['Close'])
 btc = btc.dropna()
 
-# --- SIGNAL ---
+# --- SIGNAL + RISK MANAGEMENT ---
 btc['Signal'] = ((btc['Close'] > btc['MA']) & (btc['RSI'] < RSI_THRESHOLD)).astype(int)
+
+# Add ATR-based stop-loss (14-day ATR × 1.5)
+def atr(high, low, close, window=14):
+    tr = np.maximum(high - low,
+                    np.maximum(abs(high - close.shift(1)),
+                               abs(low - close.shift(1))))
+    return tr.rolling(window).mean()
+
+# Fetch full OHLC for ATR
+full = yf.download(SYMBOL, period="1y", interval="1d", progress=False)
+if isinstance(full.columns, pd.MultiIndex):
+    full.columns = [c[0] for c in full.columns]
+full = full[['Open', 'High', 'Low', 'Close']].dropna()
+
+btc = btc.join(full[['High', 'Low']], how='left')
+btc['ATR'] = atr(btc['High'], btc['Low'], btc['Close'], 14)
+btc['SL'] = btc['Close'] - 1.5 * btc['ATR']  # long stop-loss
+btc['TP'] = btc['Close'] + 3.0 * btc['ATR']  # 2:1 reward:risk
+
+# Final signal only when SL/TP are valid
+btc = btc.dropna(subset=['ATR'])
 latest_signal = btc['Signal'].iloc[-1] == 1
 current_price = btc['Close'].iloc[-1]
+sl_price = btc['SL'].iloc[-1]
+tp_price = btc['TP'].iloc[-1]
 
 print(f"📈 {SYMBOL} | Price: ${current_price:.2f}")
 print(f"🎯 Signal: {'🟢 BUY' if latest_signal else '🔴 HOLD'}")
+if latest_signal:
+    print(f"🛡️ SL: ${sl_price:.2f} | 🎯 TP: ${tp_price:.2f} | R:R = 2:1")
 
-# --- SAVE OUTPUT ---
+# Save enhanced signal
 with open("signal.txt", "w") as f:
     f.write("BUY" if latest_signal else "HOLD")
 with open("price.txt", "w") as f:
     f.write(f"{current_price:.2f}")
+with open("sl.txt", "w") as f:
+    f.write(f"{sl_price:.2f}" if latest_signal else "N/A")
+with open("tp.txt", "w") as f:
+    f.write(f"{tp_price:.2f}" if latest_signal else "N/A")
 
 # --- OPTIONAL: Testnet Balance Check (only if keys provided) ---
 try:
